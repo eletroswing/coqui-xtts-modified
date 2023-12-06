@@ -692,7 +692,7 @@ with gr.Blocks(analytics_enabled=False) as demo:
             tos_gr = gr.Checkbox(
                 label="Agree",
                 value=False,
-                info="I agree to the terms of the Coqui Public Model License at https://coqui.ai/cpml",
+                info="I have purchased a commercial license from Coqui: licensing@coqui.ai\nOtherwise, I agree to the terms of the non-commercial CPML: https://coqui.ai/cpml",
             )
 
             tts_button = gr.Button("Send", elem_id="send-btn", visible=True)
