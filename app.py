@@ -417,23 +417,19 @@ This demo is currently running **XTTS v2.0.3**
 
 <br/>
 
-<a href="https://huggingface.co/coqui/XTTS-v2">XTTS</a> is a text-to-speech model that lets you clone voices into different languages.
+You can purchase a commcerial XTTS license from Coqui: licensing@coqui.ai. Otherwise, this demo is for non-commercial purposes only.
 
 <br/>
 
-This is the same model that powers our creator application <a href="https://coqui.ai">Coqui Studio</a> as well as the <a href="https://docs.coqui.ai">Coqui API</a>. In production we apply modifications to make low-latency streaming possible.
+<a href="https://huggingface.co/coqui/XTTS-v2">XTTS</a> is a multilingual text-to-speech and voice-cloning model. This demo only features zero-shot voice cloning, however, you can fine-tune XTTS for better results.
 
 <br/>
 
-There are 16 languages.
-
-<p>
-Arabic: ar, Brazilian Portuguese: pt , Chinese: zh-cn, Czech: cs, Dutch: nl, English: en, French: fr, German: de, Italian: it, Polish: pl, Russian: ru, Spanish: es, Turkish: tr, Japanese: ja, Korean: ko, Hungarian: hu, Hindi: hi <br/>
-</p>
+Leave a star 🌟 on Github <a href="https://github.com/coqui-ai/TTS">🐸TTS</a>, where our open-source inference and training code lives.
 
 <br/>
 
-Leave a star 🌟 on the Github <a href="https://github.com/coqui-ai/TTS">🐸TTS</a>, where our open-source inference and training code lives.
+Supported languages: Arabic: ar, Brazilian Portuguese: pt , Mandarin Chinese: zh-cn, Czech: cs, Dutch: nl, English: en, French: fr, German: de, Italian: it, Polish: pl, Russian: ru, Spanish: es, Turkish: tr, Japanese: ja, Korean: ko, Hungarian: hu, Hindi: hi
 
 <br/>
 """
