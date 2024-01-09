@@ -414,10 +414,6 @@ description = """
 
 <br/>
 
-You can purchase a commcerial XTTS license from Coqui: licensing@coqui.ai. Otherwise, this demo is for non-commercial purposes only.
-
-<br/>
-
 This demo is currently running **XTTS v2.0.3** <a href="https://huggingface.co/coqui/XTTS-v2">XTTS</a> is a multilingual text-to-speech and voice-cloning model. This demo features zero-shot voice cloning, however, you can fine-tune XTTS for better results. Leave a star 🌟 on Github <a href="https://github.com/coqui-ai/TTS">🐸TTS</a>, where our open-source inference and training code lives.
 
 <br/>
