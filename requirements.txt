@@ -10,3 +10,4 @@ unidic==1.1.0
 langid
 deepspeed
 pydub
+gradio
