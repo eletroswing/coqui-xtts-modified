@@ -1,45 +1,27 @@
 import os, stat
 import subprocess
 from zipfile import ZipFile
-import uuid
 import time
 import torch
 import torchaudio
 
-
-#download for mecab
 os.system('python -m unidic download')
 
-# By using XTTS you agree to CPML license https://coqui.ai/cpml
-os.environ["COQUI_TOS_AGREED"] = "1"
-
-# langid is used to detect language for longer text
-# Most users expect text to be their own language, there is checkbox to disable it
-import langid
-import base64
-import csv
-from io import StringIO
-import datetime
 import re
-
 import gradio as gr
 from scipy.io.wavfile import write
-from pydub import AudioSegment
-
 from TTS.api import TTS
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 from TTS.utils.generic_utils import get_user_data_dir
-
-HF_TOKEN = os.environ.get("HF_TOKEN")
-
 from huggingface_hub import HfApi
 
-# will use api to restart space on a unrecoverable error
+os.environ["COQUI_TOS_AGREED"] = "1"
+HF_TOKEN = os.environ.get("HF_TOKEN")
+
 api = HfApi(token=HF_TOKEN)
 repo_id = "coqui/xtts"
 
-# Use never ffmpeg binary for Ubuntu20 to use denoising for microphone input
 print("Export newer ffmpeg binary for denoise filter")
 ZipFile("ffmpeg.zip").extractall()
 print("Make ffmpeg binary executable")
@@ -83,52 +65,36 @@ voices = {
     "silvio_santos": "./files/silvio_santos.mp3",
 }
 
+print("pre processing audio steps")
+
+for voiceKey in list(voices.keys()):
+    current_audio_path = voices[voiceKey]
+    print(f"processing {voiceKey}")
+    try:
+        out_filename = (
+            current_audio_path + ".wav"
+        )
+        voices[voiceKey] = out_filename
+        shell_command = f"./ffmpeg -y -i {current_audio_path} -af lowpass=8000,highpass=75,areverse,silenceremove=start_periods=1:start_silence=0:start_threshold=0.02,areverse,silenceremove=start_periods=1:start_silence=0:start_threshold=0.02, {out_filename}".split(
+            " "
+        )
+        command_result = subprocess.run(
+            [item for item in shell_command],
+            capture_output=False,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        print("Error: failed filtering, use original microphone input")
+
 def predict(
     prompt,
     voice,
 ):
         language = "pt"
         audio_file_pth = voices[voice]
-        voice_cleanup = True
-      
 
         speaker_wav = audio_file_pth
-
-        lowpassfilter = denoise = trim = loudness = True
-
-        if lowpassfilter:
-            lowpass_highpass = "lowpass=8000,highpass=75,"
-        else:
-            lowpass_highpass = ""
-
-        if trim:
-            trim_silence = "areverse,silenceremove=start_periods=1:start_silence=0:start_threshold=0.02,areverse,silenceremove=start_periods=1:start_silence=0:start_threshold=0.02,"
-        else:
-            trim_silence = ""
-
-        if voice_cleanup:
-            try:
-                out_filename = (
-                    speaker_wav + str(uuid.uuid4()) + ".wav"
-                )  # ffmpeg to know output format
-
-                # we will use newer ffmpeg as that has afftn denoise filter
-                shell_command = f"./ffmpeg -y -i {speaker_wav} -af {lowpass_highpass}{trim_silence} {out_filename}".split(
-                    " "
-                )
-
-                command_result = subprocess.run(
-                    [item for item in shell_command],
-                    capture_output=False,
-                    text=True,
-                    check=True,
-                )
-                speaker_wav = out_filename
-            except subprocess.CalledProcessError:
-                # There was an error - command exited with non-zero code
-                print("Error: failed filtering, use original microphone input")
-        else:
-            speaker_wav = speaker_wav
 
         if len(prompt) < 1:
             return (
@@ -177,16 +143,12 @@ def predict(
                 )
                 return (
                     None,
-                    None,
-                    None,
-                    None,
                 )
 
             # temporary comma fix
             prompt= re.sub("([^\x00-\x7F]|\w)(\.|\。|\?)",r"\1 \2\2",prompt)
-
             
-            print("I: Generating new audio...")
+            #print("I: Generating new audio...")
             t0 = time.time()
             out = model.inference(
                 prompt,
@@ -196,17 +158,39 @@ def predict(
                 repetition_penalty=5.0,
                 temperature=0.75,
             )
-            inference_time = time.time() - t0
-            print(f"I: Time to generate audio: {round(inference_time*1000)} milliseconds")
-            metrics_text+=f"Time to generate audio: {round(inference_time*1000)} milliseconds\n"
-            real_time_factor= (time.time() - t0) / out['wav'].shape[-1] * 24000
-            print(f"Real-time factor (RTF): {real_time_factor}")
-            metrics_text+=f"Real-time factor (RTF): {real_time_factor:.2f}\n"
+            #inference_time = time.time() - t0
+            #print(f"I: Time to generate audio: {round(inference_time*1000)} milliseconds")
+            #metrics_text+=f"Time to generate audio: {round(inference_time*1000)} milliseconds\n"
+            #real_time_factor= (time.time() - t0) / out['wav'].shape[-1] * 24000
+            #print(f"Real-time factor (RTF): {real_time_factor}")
+            #metrics_text+=f"Real-time factor (RTF): {real_time_factor:.2f}\n"
             torchaudio.save("output.wav", torch.tensor(out["wav"]).unsqueeze(0), 24000)
 
+            return "output.wav"
+
         except RuntimeError as e:
-            return None
-        return "output.wav"   
+            if "device-side assert" in str(e):
+                gr.Warning("Unhandled Exception encounter, please retry in a minute")
+                print("Cuda device-assert Runtime encountered need restart")
+
+                space = api.get_space_runtime(repo_id=repo_id)
+                if space.stage!="BUILDING":
+                    api.restart_space(repo_id=repo_id)
+                else:
+                    print("TRIED TO RESTART but space is building")
+
+            else:
+                if "Failed to decode" in str(e):
+                    print("Speaker encoding error", str(e))
+                    gr.Warning(
+                        "It appears something wrong with reference, did you unmute your microphone?"
+                    )
+                else:
+                    print("RuntimeError: non device-side assert error:", str(e))
+                    gr.Warning("Something unexpected happened please retry again.")
+                return (
+                    None,
+                )
 
 with gr.Blocks(analytics_enabled=False) as demo:
     with gr.Row():
@@ -217,18 +201,12 @@ with gr.Blocks(analytics_enabled=False) as demo:
             )
             voice = gr.Dropdown(
                 label="Voz",
-                choices=[
-                    "lula",
-                    "bolsonaro",
-                    "away",
-                    "faustao",
-                    "silvio_santos",
-                ],
+                choices=list(voices.keys()),
                 max_choices=1,
                 value="lula",
             )
 
-            tts_button = gr.Button("Send", elem_id="send-btn", visible=True)
+            tts_button = gr.Button("Processar", elem_id="send-btn", visible=True)
 
 
         with gr.Column():
@@ -237,5 +215,5 @@ with gr.Blocks(analytics_enabled=False) as demo:
 
     tts_button.click(predict, [input_text_gr, voice], outputs=[audio_gr])
 
-demo.queue()  
+demo.queue(concurrency_count=4, max_size=200)  
 demo.launch(debug=True, show_api=True, share=True)
